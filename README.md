@@ -26,7 +26,7 @@ The core idea is:
 Pruner reads from stdin and writes to stdout.
 
 ```bash
-prune format --lang clojure < input.clj > output.clj
+pruner format --lang clojure < input.clj > output.clj
 ```
 
 Options:
