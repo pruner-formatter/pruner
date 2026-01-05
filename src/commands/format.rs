@@ -1,19 +1,20 @@
 use anyhow::{Context, Result};
 use clap::ArgAction;
-use rayon::prelude::*;
 use std::{
-  collections::HashSet,
   fs,
   io::Read,
   path::{Path, PathBuf},
+  process::exit,
   time::Instant,
 };
-use tree_sitter::Parser;
 
 use crate::{
-  api::{self, format::FormatOpts, grammar::Grammars},
+  api::{
+    self,
+    format::{self, FormatContext, FormatOpts},
+  },
   cli::GlobalOpts,
-  config::{FormatterSpecs, LanguageFormatters, PrunerConfig},
+  config::PrunerConfig,
 };
 
 #[derive(clap::Args, Debug)]
@@ -26,215 +27,17 @@ pub struct FormatArgs {
 
   #[arg(long, default_value_t = false, action = ArgAction::SetTrue)]
   injected_regions_only: bool,
-}
 
-fn offset_lines(data: &mut Vec<u8>, offset: usize) {
-  if offset == 0 {
-    return;
-  }
+  #[arg(long)]
+  dir: Option<PathBuf>,
 
-  let mut i = 0;
-  while i < data.len() {
-    if data[i] == b'\n' {
-      let next = data.get(i + 1).copied();
-      if matches!(next, Some(b'\n') | Some(b'\r') | None) {
-        i += 1;
-        continue;
-      }
-      let spaces = vec![b' '; offset];
-      data.splice(i + 1..i + 1, spaces);
-      i += offset + 1;
-    } else {
-      i += 1;
-    }
-  }
-}
+  #[arg(long)]
+  exclude: Option<Vec<String>>,
 
-fn trim_trailing_whitespace(data: &mut Vec<u8>, preserve_newline: bool) {
-  let mut removed_newline = false;
-  while data.last() == Some(&b'\n') || data.last() == Some(&b'\r') {
-    data.pop();
-    removed_newline = true;
-  }
+  #[arg(long, default_value_t = false, action = ArgAction::SetTrue)]
+  check: bool,
 
-  if preserve_newline && removed_newline {
-    data.push(b'\n');
-  }
-}
-
-fn column_for_byte(source: &[u8], byte_index: usize) -> usize {
-  let target = byte_index.min(source.len());
-  let line_start = source[..target]
-    .iter()
-    .rposition(|byte| *byte == b'\n')
-    .map(|index| index + 1)
-    .unwrap_or(0);
-
-  target - line_start
-}
-
-fn min_leading_indent(text: &str) -> usize {
-  let mut min_indent: Option<usize> = None;
-  for line in text.lines() {
-    if line.trim().is_empty() {
-      continue;
-    }
-    let indent = line.chars().take_while(|ch| *ch == ' ').count();
-    min_indent = Some(min_indent.map_or(indent, |current| current.min(indent)));
-  }
-
-  min_indent.unwrap_or(0)
-}
-
-fn strip_leading_indent(text: &str, indent: usize) -> String {
-  if indent == 0 {
-    return text.to_string();
-  }
-
-  let mut result = String::with_capacity(text.len());
-  for segment in text.split_inclusive('\n') {
-    let (line, newline) = if segment.ends_with('\n') {
-      (&segment[..segment.len() - 1], "\n")
-    } else {
-      (segment, "")
-    };
-    let leading_spaces = line.chars().take_while(|ch| *ch == ' ').count();
-    let trim_count = indent.min(leading_spaces);
-    let trimmed = if trim_count > 0 {
-      &line[trim_count..]
-    } else {
-      line
-    };
-    result.push_str(trimmed);
-    result.push_str(newline);
-  }
-
-  result
-}
-
-fn sort_escape_chars(escape_chars: &HashSet<String>) -> Vec<String> {
-  let mut chars: Vec<String> = escape_chars.iter().cloned().collect();
-  chars.sort_by(|a, b| b.len().cmp(&a.len()).then_with(|| a.cmp(b)));
-  chars
-}
-
-fn unescape_text(text: &str, escape_chars: &[String]) -> String {
-  let mut result = text.to_string();
-  for escape_char in escape_chars {
-    let mut pattern = String::from("\\");
-    pattern.push_str(escape_char);
-    result = result.replace(&pattern, escape_char);
-  }
-  result
-}
-
-fn escape_text(text: &str, escape_chars: &[String]) -> String {
-  let mut result = text.to_string();
-  for escape_char in escape_chars {
-    let mut replacement = String::from("\\");
-    replacement.push_str(escape_char);
-    result = result.replace(escape_char, &replacement);
-  }
-  result
-}
-
-pub struct FormatContext<'a> {
-  pub grammars: &'a Grammars,
-  pub languages: &'a LanguageFormatters,
-  pub formatters: &'a FormatterSpecs,
-}
-
-pub fn format_recursive(
-  parser: &mut Parser,
-  source: &[u8],
-  opts: FormatOpts,
-  skip_root: bool,
-  format_context: &FormatContext,
-) -> Result<Vec<u8>> {
-  let Some(grammar) = format_context.grammars.get(opts.language) else {
-    return Ok(Vec::from(source));
-  };
-
-  let mut formatted_result = Vec::from(source);
-
-  if !skip_root {
-    if let Some(language_formatter_specs) = format_context.languages.get(opts.language) {
-      if let Some(formatter_name) = language_formatter_specs.first() {
-        if let Some(formatter) = format_context.formatters.get(formatter_name) {
-          formatted_result = api::format::format(formatter, &formatted_result, &opts)?;
-        }
-      }
-    }
-  }
-
-  let mut injected_regions =
-    api::injections::extract_language_injections(parser, grammar, &formatted_result)?;
-  // Sort in reverse order. File modifications can therefore be applied from end to start
-  injected_regions.sort_by(|a, b| b.range.start_byte.cmp(&a.range.start_byte));
-
-  let formatted_regions = injected_regions
-    .par_iter()
-    .map(|region| {
-      let source_slice = &formatted_result[region.range.start_byte..region.range.end_byte];
-      let escape_chars = sort_escape_chars(&region.opts.escape_chars);
-      let source_str = String::from_utf8(Vec::from(source_slice))?;
-      let unescaped_source_str = if escape_chars.is_empty() {
-        source_str
-      } else {
-        unescape_text(&source_str, &escape_chars)
-      };
-
-      let mut indent = column_for_byte(source, region.range.start_byte);
-      let mut normalized_source = unescaped_source_str;
-      if indent > 0 {
-        normalized_source = strip_leading_indent(&normalized_source, indent);
-      } else {
-        let min_indent = min_leading_indent(&normalized_source);
-        if min_indent > 0 {
-          normalized_source = strip_leading_indent(&normalized_source, min_indent);
-          indent = min_indent;
-        }
-      }
-
-      let unescaped_source = normalized_source.into_bytes();
-      let adjusted_printwidth = opts.printwidth.saturating_sub(indent as u32);
-      let mut parser = Parser::new();
-      let mut formatted_sub_result = format_recursive(
-        &mut parser,
-        &unescaped_source,
-        FormatOpts {
-          printwidth: adjusted_printwidth.max(1),
-          language: &region.lang,
-        },
-        false,
-        format_context,
-      )?;
-      if !escape_chars.is_empty() {
-        let formatted_str = String::from_utf8(formatted_sub_result)?;
-        formatted_sub_result = escape_text(&formatted_str, &escape_chars).into_bytes();
-      }
-      let has_trailing_newline = source_slice.ends_with(b"\n");
-      trim_trailing_whitespace(&mut formatted_sub_result, has_trailing_newline);
-      offset_lines(&mut formatted_sub_result, indent);
-      Ok((region.clone(), formatted_sub_result))
-    })
-    .collect::<Vec<Result<(api::injections::InjectedRegion, Vec<u8>)>>>();
-
-  let mut region_results = Vec::with_capacity(formatted_regions.len());
-  for result in formatted_regions {
-    region_results.push(result?);
-  }
-
-  region_results.sort_by(|(a, _), (b, _)| b.range.start_byte.cmp(&a.range.start_byte));
-
-  for (region, formatted_sub_result) in region_results {
-    formatted_result.splice(
-      region.range.start_byte..region.range.end_byte,
-      formatted_sub_result,
-    );
-  }
-
-  Ok(formatted_result)
+  include_glob: Option<String>,
 }
 
 fn paths_relative_to(root: &Path, paths: &[PathBuf]) -> Vec<PathBuf> {
@@ -243,6 +46,61 @@ fn paths_relative_to(root: &Path, paths: &[PathBuf]) -> Vec<PathBuf> {
     .cloned()
     .map(|entry| root.join(entry))
     .collect::<Vec<_>>()
+}
+
+fn format_stdin(args: &FormatArgs, context: &FormatContext) -> Result<()> {
+  let input = {
+    let mut buf = Vec::new();
+    std::io::stdin().read_to_end(&mut buf)?;
+    buf
+  };
+
+  let start = Instant::now();
+  let result = format::format(
+    &input,
+    &FormatOpts {
+      printwidth: args.print_width,
+      language: &args.lang,
+    },
+    args.injected_regions_only,
+    context,
+  )?;
+  log::debug!(
+    "Format time total: {:?}",
+    Instant::now().duration_since(start)
+  );
+
+  print!("{}", String::from_utf8(result).unwrap());
+
+  Ok(())
+}
+
+fn format_files(args: &FormatArgs, context: &FormatContext) -> Result<()> {
+  let cwd = std::env::current_dir()?;
+
+  let paths = format::format_files(
+    &args.dir.clone().unwrap_or(cwd),
+    &args.include_glob.clone().unwrap(),
+    args.exclude.clone(),
+    !args.check,
+    &FormatOpts {
+      printwidth: args.print_width,
+      language: &args.lang,
+    },
+    args.injected_regions_only,
+    context,
+  )?;
+
+  if args.check {
+    if !paths.is_empty() {
+      log::error!("{} dirty files", paths.len());
+      exit(1);
+    }
+  } else {
+    log::info!("formatted {} files", paths.len());
+  }
+
+  Ok(())
 }
 
 pub fn handle(args: FormatArgs, global: GlobalOpts) -> Result<()> {
@@ -302,34 +160,17 @@ pub fn handle(args: FormatArgs, global: GlobalOpts) -> Result<()> {
     Instant::now().duration_since(start)
   );
 
-  let input = {
-    let mut buf = Vec::new();
-    std::io::stdin().read_to_end(&mut buf)?;
-    buf
+  let context = FormatContext {
+    grammars: &grammars,
+    languages: &pruner_config.languages.unwrap_or_default(),
+    formatters: &pruner_config.formatters.unwrap_or_default(),
   };
 
-  let mut parser = Parser::new();
-  let start = Instant::now();
-  let result = format_recursive(
-    &mut parser,
-    &input,
-    FormatOpts {
-      printwidth: args.print_width,
-      language: &args.lang,
-    },
-    args.injected_regions_only,
-    &FormatContext {
-      grammars: &grammars,
-      languages: &pruner_config.languages.unwrap_or_default(),
-      formatters: &pruner_config.formatters.unwrap_or_default(),
-    },
-  )?;
-  log::debug!(
-    "Format time total: {:?}",
-    Instant::now().duration_since(start)
-  );
-
-  print!("{}", String::from_utf8(result).unwrap());
+  if args.include_glob.is_some() {
+    format_files(&args, &context)?;
+  } else {
+    format_stdin(&args, &context)?;
+  }
 
   Ok(())
 }

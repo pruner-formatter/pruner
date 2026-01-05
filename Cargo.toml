@@ -16,6 +16,9 @@ url = "2"
 anyhow = "1"
 xdg = "3"
 
+ignore = "0.4"
+globset = "0.4"
+
 log = "0.4"
 env_logger = "0.11"
 

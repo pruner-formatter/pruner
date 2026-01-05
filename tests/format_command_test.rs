@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use pruner::{api::format::FormatOpts, commands::format::FormatContext};
+use pruner::api::format::{self, FormatContext, FormatOpts};
 
 mod common;
 
@@ -12,11 +12,9 @@ fn format_command() -> Result<()> {
 
   let source = common::load_file("format_command/input.clj");
 
-  let mut parser = tree_sitter::Parser::new();
-  let result = pruner::commands::format::format_recursive(
-    &mut parser,
+  let result = format::format(
     source.as_bytes(),
-    FormatOpts {
+    &FormatOpts {
       printwidth: 80,
       language: "clojure",
     },
@@ -44,11 +42,9 @@ fn format_injections_only() -> Result<()> {
 
   let source = common::load_file("format_injections_only/input.clj");
 
-  let mut parser = tree_sitter::Parser::new();
-  let result = pruner::commands::format::format_recursive(
-    &mut parser,
+  let result = format::format(
     source.as_bytes(),
-    FormatOpts {
+    &FormatOpts {
       printwidth: 80,
       language: "clojure",
     },
@@ -76,11 +72,9 @@ fn offset_dependent_printwidth() -> Result<()> {
 
   let source = common::load_file("offset_dependent_printwidth/input.clj");
 
-  let mut parser = tree_sitter::Parser::new();
-  let result = pruner::commands::format::format_recursive(
-    &mut parser,
+  let result = format::format(
     source.as_bytes(),
-    FormatOpts {
+    &FormatOpts {
       printwidth: 80,
       language: "clojure",
     },
