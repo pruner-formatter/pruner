@@ -21,6 +21,18 @@ The core idea is:
 - Format both the root language and injected regions.
 - Re-apply the injected formatting back into the root result.
 
+## Installation
+
+### Homebrew
+
+```bash
+brew install julienvincent/tap/pruner
+```
+
+### Binaries
+
+The binaries are also available on every github release. Check the releases page to find the latest binary.
+
 ## How to use it
 
 Pruner reads from stdin and writes to stdout.
@@ -29,12 +41,49 @@ Pruner reads from stdin and writes to stdout.
 pruner format --lang clojure < input.clj > output.clj
 ```
 
-Options:
+```bash
+❯ pruner format --help
+Format one or more files
 
-- `--lang`: the root language name (must match the grammar name).
-- `--print-width`: print width passed to formatters (default: 80).
-- `--injected-regions-only`: only format injected regions; do not format root.
-- `--config`: path to `config.toml` (defaults to XDG config if present).
+Usage: pruner format [OPTIONS] --lang <LANG> [INCLUDE_GLOB]
+
+Arguments:
+  [INCLUDE_GLOB]
+          A file pattern, in glob format, describing files on disk to be formatted.
+
+          If this is specified then pruner will recursively format all files in the cwd (or --dir if set) that match this pattern.
+
+          If this is _not_ set then pruner will expect source code to be provided via stdin and the formatted result will be outputted over stdout.
+
+Options:
+      --lang <LANG>
+          The language name of the root document. Regions containing injected languages will be dynamically discovered from queries
+
+      --log-level <LOG_LEVEL>
+
+
+  -w, --print-width <PRINT_WIDTH>
+          The desired print-width of the document after which text should wrap. This value specifies the starting point and will be dynamically adjusted for injected language regions
+
+          [default: 80]
+
+  -R, --skip-root
+          Specifying this will skip formatting the document root. This means only regions within the document containing language injections will be formatted. If you only want to use pruner to format injected regions, then this is the option to use.
+
+          This can be especially useful in an editor context where you might want to use your LSP to format your document root, and then run pruner on the result to format injected regions.
+
+  -d, --dir <DIR>
+          The current working directory. Only used when formatting files
+
+  -e, --exclude <EXCLUDE>
+          Specify a file exclusion pattern as a glob. Any files matching this pattern will not be formatted. Can be specified multiple times
+
+  -c, --check
+          Setting this to true will result in no files being modified on disk. If any files are considered 'dirty' meaning, meaning they are not correctly formatted, then pruner will exit with a non-0 exit code
+
+  -h, --help
+          Print help (see a summary with '-h')
+```
 
 ## Configuration
 
