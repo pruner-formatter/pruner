@@ -1,5 +1,4 @@
 use anyhow::{Context, Result};
-use clap::ArgAction;
 use std::{
   fs,
   io::Read,
@@ -35,7 +34,14 @@ pub struct FormatArgs {
   ///
   /// This can be especially useful in an editor context where you might want to use your LSP to
   /// format your document root, and then run pruner on the result to format injected regions.
-  #[arg(long, short('R'), default_value_t = false, action = ArgAction::SetTrue)]
+  #[arg(
+    long,
+    short('R'),
+    default_value_t = false,
+    num_args = 0..=1,
+    default_missing_value = "true",
+    value_parser = clap::builder::BoolValueParser::new()
+  )]
   skip_root: bool,
 
   /// The current working directory. Only used when formatting files.
@@ -50,7 +56,14 @@ pub struct FormatArgs {
   /// Setting this to true will result in no files being modified on disk. If any files are
   /// considered 'dirty' meaning, meaning they are not correctly formatted, then pruner will exit
   /// with a non-0 exit code.
-  #[arg(long, short('c'), default_value_t = false, action = ArgAction::SetTrue)]
+  #[arg(
+    long,
+    short('c'),
+    default_value_t = false,
+    num_args = 0..=1,
+    default_missing_value = "true",
+    value_parser = clap::builder::BoolValueParser::new()
+  )]
   check: bool,
 
   /// A file pattern, in glob format, describing files on disk to be formatted.

@@ -67,10 +67,13 @@ Options:
 
           [default: 80]
 
-  -R, --skip-root
+  -R, --skip-root [<SKIP_ROOT>]
           Specifying this will skip formatting the document root. This means only regions within the document containing language injections will be formatted. If you only want to use pruner to format injected regions, then this is the option to use.
 
           This can be especially useful in an editor context where you might want to use your LSP to format your document root, and then run pruner on the result to format injected regions.
+
+          [default: false]
+          [possible values: true, false]
 
   -d, --dir <DIR>
           The current working directory. Only used when formatting files
@@ -78,8 +81,11 @@ Options:
   -e, --exclude <EXCLUDE>
           Specify a file exclusion pattern as a glob. Any files matching this pattern will not be formatted. Can be specified multiple times
 
-  -c, --check
+  -c, --check [<CHECK>]
           Setting this to true will result in no files being modified on disk. If any files are considered 'dirty' meaning, meaning they are not correctly formatted, then pruner will exit with a non-0 exit code
+
+          [default: false]
+          [possible values: true, false]
 
   -h, --help
           Print help (see a summary with '-h')
