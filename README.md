@@ -4,22 +4,33 @@
   <p>
     A TreeSitter-powered formatter orchestrator
   </p>
+
 </div>
 
 ---
 
 ## What is this?
 
-Pruner is a formatter orchestrator that understands tree-sitter language injections. It lets you format a host language
-(like Clojure) and also format embedded regions (like Markdown docstrings or SQL strings) with the appropriate
-formatter, then re-embeds the results back into the original file.
+Pruner is a formatter orchestrator that uses tree-sitter to understand source code files that containing embedded
+languages. It addresses a common formatting gap: real-world source files often embed multiple languages, while most
+formatters only operate on a single root language. Embedded regions within a source file would in most cases be treated
+as opaque strings by the host languages formatter toolchain.
 
-The core idea is:
+Pruner parses the document with tree-sitter, identifies injected regions via injection queries, formats each region with
+a formatter that understands the regions language, and then re-embeds the results back into the original document.
 
-- Parse the source with tree-sitter.
-- Find injected regions using injection queries.
-- Format both the root language and injected regions.
-- Re-apply the injected formatting back into the root result.
+This effectively allows you to utilize a languages' native ecosystem for formatting across language barriers. This would
+be in contrast to, for example, trying to build a single formatter which knows how to format all languages - an
+impractical goal.
+
+![extraction-diagram](./assets/pruner-diagram.webp)
+
+In addition to being able to call out to external formatters, Pruner also exposes a WASM component extension point. This
+allows the implementation of formatter modules in any language which can compile to wasm components. Some existing
+language formatters may even already be compilable to wasm!
+
+This can be particularly useful for implementing formatting adjustments not built-in to native language formatters. An
+example being `trim_newlines` - a WASM formatter which simply trims leading/trailing newlines from a document.
 
 ## Installation
 
@@ -42,7 +53,8 @@ pruner format --lang clojure < input.clj > output.clj
 ```
 
 ```bash
-❯ pruner format --help
+pruner format --help
+
 Format one or more files
 
 Usage: pruner format [OPTIONS] --lang <LANG> [INCLUDE_GLOB]
@@ -93,8 +105,13 @@ Options:
 
 ## Configuration
 
-Config is read from the path provided via `--config`. If you do not pass a config, Pruner will look for `config.toml`
-under the XDG config directory for the `pruner` app. If no config is found, Pruner uses defaults.
+Configuration is defined in `toml` and can be provided in the following ways:
+
+- A `pruner.toml` file at or in a parent directory of the current working directory
+- A user-level config file placed at `$XDG_CONFIG_HOME/pruner/config.toml`. This will be merged with project-local
+  config files
+- A config file specified by the `--config` flag passed when calling `format`. If this is specified, this will be the
+  _only_ config used.
 
 Example `config.toml`:
 
