@@ -22,16 +22,22 @@ pub fn offset_lines(data: &mut Vec<u8>, offset: usize) {
   }
 }
 
-pub fn trim_trailing_whitespace(data: &mut Vec<u8>, preserve_newline: bool) {
-  let mut removed_newline = false;
+pub fn strip_trailing_newlines(data: &mut Vec<u8>) {
   while data.last() == Some(&b'\n') || data.last() == Some(&b'\r') {
     data.pop();
-    removed_newline = true;
+  }
+}
+
+pub fn trailing_newlines(data: &[u8]) -> Vec<u8> {
+  let mut index = data.len();
+  while index > 0 {
+    match data[index - 1] {
+      b'\n' | b'\r' => index -= 1,
+      _ => break,
+    }
   }
 
-  if preserve_newline && removed_newline {
-    data.push(b'\n');
-  }
+  data[index..].to_vec()
 }
 
 pub fn column_for_byte(source: &[u8], byte_index: usize) -> usize {

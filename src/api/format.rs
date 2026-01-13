@@ -69,6 +69,7 @@ pub fn format(
       };
 
       let mut indent = text::column_for_byte(&formatted_result, region.range.start_byte);
+      let mut indent_from_content = false;
       let mut normalized_source = unescaped_source_str;
       if indent > 0 {
         normalized_source = text::strip_leading_indent(&normalized_source, indent);
@@ -77,10 +78,12 @@ pub fn format(
         if min_indent > 0 {
           normalized_source = text::strip_leading_indent(&normalized_source, min_indent);
           indent = min_indent;
+          indent_from_content = true;
         }
       }
 
       let unescaped_source = normalized_source.into_bytes();
+      let trailing_newlines = text::trailing_newlines(source_slice);
       let adjusted_printwidth = opts.printwidth.saturating_sub(indent as u32);
       let mut formatted_sub_result = format(
         &unescaped_source,
@@ -95,8 +98,16 @@ pub fn format(
         let formatted_str = String::from_utf8(formatted_sub_result)?;
         formatted_sub_result = text::escape_text(&formatted_str, &escape_chars).into_bytes();
       }
-      let has_trailing_newline = source_slice.ends_with(b"\n");
-      text::trim_trailing_whitespace(&mut formatted_sub_result, has_trailing_newline);
+      text::strip_trailing_newlines(&mut formatted_sub_result);
+      formatted_sub_result.extend_from_slice(&trailing_newlines);
+      if indent_from_content && indent > 0 {
+        if formatted_sub_result.first() != Some(&b'\n')
+          && formatted_sub_result.first() != Some(&b'\r')
+        {
+          let spaces = vec![b' '; indent];
+          formatted_sub_result.splice(0..0, spaces);
+        }
+      }
       text::offset_lines(&mut formatted_sub_result, indent);
       Ok((region.clone(), formatted_sub_result))
     })
