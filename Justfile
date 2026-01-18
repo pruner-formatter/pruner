@@ -2,15 +2,7 @@ default:
     @just --list
 
 prepare:
-    #!/bin/sh
-    set -e pipefail
-
-    rm -rf tests/fixtures/grammars || true
-    mkdir -p tests/fixtures/grammars
-
-    git clone https://github.com/tree-sitter-grammars/tree-sitter-markdown --depth 1 tests/fixtures/grammars/markdown
-    git clone https://github.com/sogaiu/tree-sitter-clojure --depth 1 tests/fixtures/grammars/clojure
-    git clone https://github.com/derekstride/tree-sitter-sql --depth 1 --branch gh-pages tests/fixtures/grammars/sql
+    cd crates/cli && just prepare
 
 build:
     cargo build -p pruner --release
