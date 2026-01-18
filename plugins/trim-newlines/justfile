@@ -1,9 +1,0 @@
-build:
-    cargo build \
-      -Zunstable-options \
-      --target wasm32-wasip2 \
-      --release \
-      --artifact-dir "dist"
-
-test:
-    cargo test

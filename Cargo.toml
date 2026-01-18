@@ -1,10 +1,5 @@
 [workspace]
-members = [
-  "crates/cli",
-  "crates/plugin-api",
-  "plugins/align-comments",
-  "plugins/trim-newlines",
-]
+members = ["crates/cli", "crates/plugin-api"]
 resolver = "2"
 
 [profile.release]
