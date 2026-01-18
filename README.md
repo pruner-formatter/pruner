@@ -138,14 +138,15 @@ you can find the definition [here](./wit/world.wit), or you can download the WIT
 
 Pruner plugins are compiled WASM component binaries and can be loaded from disk or from a remote URL. By using WASM
 Pruner allows plugin authors to write plugins in a language of their choosing so long as it can be compiled to a WASM
-component. See [here]() for a list of known supported languages.
+component. See [here](https://component-model.bytecodealliance.org/language-support.html) for a list of known supported
+languages.
 
 #### Official Plugins
 
 - **[trim-newlines](https://github.com/pruner-formatter/plugin-trim-newlines)** - Trim leading/trailing newlines from
   any language
-- **[align-clojure-comments](https://github.com/pruner-formatter/plugin-align-clojure-comments)** - Align Clojure
-  comments to the node they correspond to.
+- **[clojure-comment-formatter](https://github.com/pruner-formatter/plugin-clojure-comment-formatter)** - Format and
+  align Clojure comments to the node they correspond to.
 
 #### Community Plugins
 
