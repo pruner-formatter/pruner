@@ -3,6 +3,10 @@ name = "pruner-plugin-api"
 version = "0.1.0"
 edition = "2024"
 resolver = "2"
+repository = "https://github.com/pruner-formatter/pruner"
+license = "MIT"
+readme = "README.md"
+description = "WIT bindings for Pruners Plugin API"
 
 [dependencies]
 wit-bindgen = "0.50"
