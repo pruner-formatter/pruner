@@ -52,7 +52,7 @@ brew install pruner-formatter/tap/pruner
 
 ### Binaries
 
-The binaries are also available on every github release. Check the releases page to find the latest binary.
+The binaries are also available on every Github release. Check the latest releases to find a binary for your platform.
 
 ## How to use it
 
@@ -61,6 +61,8 @@ Pruner reads from stdin and writes to stdout.
 ```bash
 cat hello.md | pruner format --lang markdown > hello.md
 ```
+
+Run `--help` for more information.
 
 ## Configuration
 
@@ -85,8 +87,8 @@ query_paths = ["queries"]
 #
 # This is not required if you don't care about formatting embedded languages
 [grammars]
-clojure = { url = "https://github.com/sogaiu/tree-sitter-clojure" }
-markdown = { url = "https://github.com/tree-sitter-grammars/tree-sitter-markdown" }
+clojure = "https://github.com/sogaiu/tree-sitter-clojure"
+markdown = "https://github.com/tree-sitter-grammars/tree-sitter-markdown"
 sql = { url = "https://github.com/derekstride/tree-sitter-sql", rev = "gh-pages" }
 
 # Named formatters which can be executed by Pruner. The tools referenced by `cmd` will need to be installed and
@@ -104,12 +106,19 @@ pg_format = { cmd = "pg_format", args = [
 # Wasm plugins to be loaded by pruner. This should be a URI pointing to a compiled .wasm binary implementing the
 # pruner/plugin-api.
 [plugins]
-trim_newlines = "https://github.com/pruner-formatter/plugin-trim-newlines/releases/v1.0.0/trim_newlines.wasm"
-plugin_b = {url = "file:///path/to/plugin.wasm"}
+trim_newlines = "https://github.com/pruner-formatter/plugin-trim-newlines/releases/download/v0.1.0/plugin.wasm"
+plugin_b = { url = "file:///path/to/plugin.wasm" }
 
+# This section contains a mapping of language name -> formatters. When the relevant language is to be formatted, pruner
+# will execute the formatters specified here in order.
+#
+# These can be named [formatters] or [plugins]
 [languages]
 markdown = ["prettier", "trim_newlines"]
 sql = ["pg_format", "trim_newlines", "plugin_b"]
+
+# Profiles are partial config overrides which can be applied selectively at runtime. More on this below.
+[profiles]
 ```
 
 ## Language Injections
@@ -136,23 +145,30 @@ Read **[this short guide](./docs/writing-injections.md)** for a more practical e
 The pruner plugin API is defined as a [WIT interface](https://component-model.bytecodealliance.org/design/wit.html) and
 you can find the definition [here](./wit/world.wit), or you can download the WIT files from the releases page.
 
-Pruner plugins are compiled WASM component binaries and can be loaded from disk or from a remote URL. By using WASM
-Pruner allows plugin authors to write plugins in a language of their choosing so long as it can be compiled to a WASM
+Pruner plugins are compiled WASM components and can be loaded from disk or from a remote URL. By using WASM Pruner
+allows plugin authors to write plugins in any language of their choosing so long as it can be compiled to a WASM
 component. See [here](https://component-model.bytecodealliance.org/language-support.html) for a list of known supported
 languages.
 
-#### Official Plugins
+### Official Plugins
 
 - **[trim-newlines](https://github.com/pruner-formatter/plugin-trim-newlines)** - Trim leading/trailing newlines from
   any language
 - **[clojure-comment-formatter](https://github.com/pruner-formatter/plugin-clojure-comment-formatter)** - Format and
   align Clojure comments to the node they correspond to.
 
-#### Community Plugins
+### Community Plugins
 
 Feel free to open a PR contributing your own plugin(s)!
 
-#### Authoring Plugins
+### Authoring Plugins
 
 See the **[writing plugins](./docs/writing-plugins.md)** guide for a reference on how to build a plugin in Rust, or go
 check out one of the above plugins for a reference.
+
+## Acknowledgements
+
+Thanks to
+
+- [stevearc/conform.nvim](https://github.com/stevearc/conform.nvim/) For being the driving inspiration for Pruners
+  config and approach to formatter composition.
