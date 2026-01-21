@@ -316,3 +316,36 @@ fn markdown_with_html() -> Result<()> {
 
   Ok(())
 }
+
+#[test]
+fn utf8_docstring() -> Result<()> {
+  let grammars = common::grammars()?;
+  let formatters = common::formatters();
+  let languages = common::languages();
+  let wasm_formatter = WasmFormatter::new("cache".into())?;
+
+  let source = common::load_file("utf8_docstring/input.clj");
+
+  let result = format::format(
+    source.as_bytes(),
+    &FormatOpts {
+      printwidth: 80,
+      language: "clojure",
+    },
+    true,
+    true,
+    &FormatContext {
+      grammars: &grammars,
+      languages: &languages,
+      formatters: &formatters,
+      wasm_formatter: &wasm_formatter,
+    },
+  )
+  .unwrap();
+
+  let expected = common::load_file("utf8_docstring/output.clj");
+
+  assert_eq!(String::from_utf8(result).unwrap(), expected);
+
+  Ok(())
+}

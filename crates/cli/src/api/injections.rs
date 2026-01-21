@@ -113,13 +113,7 @@ fn point_to_byte(source: &str, point: Point) -> Option<usize> {
 
   for (current_row, line) in source.split_inclusive('\n').enumerate() {
     if current_row == point.row {
-      let mut col_byte = 0;
-      for (i, ch) in line.chars().enumerate() {
-        if i == point.column {
-          break;
-        }
-        col_byte += ch.len_utf8();
-      }
+      let col_byte = point.column.min(line.len());
       return Some(byte_index + col_byte);
     }
 
