@@ -40,7 +40,8 @@ pub fn format(
         let formatter_name = format_spec.formatter();
 
         formatted_result = if let Some(formatter) = format_context.formatters.get(formatter_name) {
-          runner::format(formatter, &formatted_result, opts)?
+          runner::format(formatter, &formatted_result, opts)
+            .context(format!("Failed to run formatter: {formatter_name}"))?
         } else if format_context.wasm_formatter.has_formatter(formatter_name) {
           format_context
             .wasm_formatter

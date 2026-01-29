@@ -30,19 +30,6 @@ In addition to being able to call out to existing language formatters, Pruner ca
 plugins. This allows encapsulating project/organization specific formatting rules, or writing brand new language
 formatters in any language that can compile to WASM.
 
-## Index
-
-- **[What](#what)**
-- **[Installation](#installation)**
-- **[Configuration](#configuration)**
-  - **[Profiles](#profiles)**
-- **[Formatting Embedded Languages](#formatting-embedded-languages)**
-- **[Plugins](#plugins)**
-  - **[Official Plugins](#official-plugins)**
-  - **[Community Plugins](#community-plugins)**
-  - **[Authoring Plugins](#authoring-plugins)**
-    - **[Rust Guide](./docs/writing-plugins.md)**
-
 ## Installation
 
 ### Homebrew
@@ -51,147 +38,76 @@ formatters in any language that can compile to WASM.
 brew install pruner-formatter/tap/pruner
 ```
 
-### Binaries
+### Raw Binaries
 
-The binaries are also available on every Github release. Check the latest releases to find a binary for your platform.
+You can download the latest binary for your platform via the
+**[Github releases page](https://github.com/pruner-formatter/pruner/releases)**
 
-## How to use it
+## Quick-Start
+
+A configuration file is required for pruner to do anything when presented with source code. Without one pruner will just
+return the presented text verbatim.
+
+For this example lets configure Pruner to format the following Markdown document which contains some embedded
+JavaScript:
+
+````markdown
+<!-- hello-world.md -->
+Hello, 
+world!
+
+```javascript
+console.log(  "Hello, world"  )
+```
+````
+
+The only external formatter we require for this is `prettier` which conveniently understands how to format both of these
+languages. We also need the Markdown treesitter grammar so that Pruner can parse out the embedded JS code region.
+
+Add the following config to `$XDG_CONFIG_HOME/pruner/config.toml` (or `~/.config/pruner/config.toml`):
+
+```toml
+# ~/.config/pruner/config.toml
+
+[grammars]
+markdown = "https://github.com/tree-sitter-grammars/tree-sitter-markdown"
+
+# Instruct pruner on how to invoke the `prettier` binary
+[formatters]
+prettier = { cmd = "prettier", args = [
+  "--prose-wrap=always",
+  "--print-width=$textwidth",
+  "--parser=$language",
+] }
+
+# Instruct pruner to use the `prettier` formatter for both markdown and javascript
+[languages]
+markdown = ["prettier"]
+javascript = ["prettier"]
+```
 
 Pruner reads from stdin and writes to stdout.
 
 ```bash
-cat hello.md | pruner format --lang markdown > hello.md
+cat hello-world.md | pruner format --lang markdown > hello-world.md
+cat hello-world.md
 ```
 
-Run `--help` for more information.
+````markdown
+<!-- hello-world.md -->
 
-## Configuration
+Hello, world!
 
-Configuration is defined in `toml` and can be provided in the following ways:
-
-- A `pruner.toml` file at or in a parent of the current working directory
-- A user-level config file placed at `$XDG_CONFIG_HOME/pruner/config.toml`. This will be merged with project-level
-  config files
-- A config file specified through the `--config` flag passed when calling `format`. If specified, this will be the
-  _only_ config used.
-
-Example `config.toml`:
-
-```toml
-# Search paths for tree-sitter injection queries
-#
-# This is not required if you don't care about formatting embedded languages
-query_paths = ["queries"]
-
-# Here you can define repository URLs containing tree-sitter language grammars. These repos will be cloned down,
-# compiled, and loaded when formatting these languages.
-#
-# This is not required if you don't care about formatting embedded languages
-[grammars]
-clojure = "https://github.com/sogaiu/tree-sitter-clojure"
-markdown = "https://github.com/tree-sitter-grammars/tree-sitter-markdown"
-sql = { url = "https://github.com/derekstride/tree-sitter-sql", rev = "gh-pages" }
-
-# Named formatters which can be executed by Pruner. The tools referenced by `cmd` will need to be installed and
-# available on your $PATH
-[formatters]
-prettier = { cmd = "prettier", args = ["--prose-wrap=always", "--print-width=$textwidth",
-  "--parser=$language"] }
-
-pg_format = { cmd = "pg_format", args = [
-  "--spaces=2",
-  "--wrap-limit=$textwidth",
-  "-",
-] }
-
-# Wasm plugins to be loaded by pruner. This should be a URI pointing to a compiled .wasm binary implementing the
-# pruner/plugin-api.
-[plugins]
-trim_newlines = "https://github.com/pruner-formatter/plugin-trim-newlines/releases/download/v0.1.0/plugin.wasm"
-plugin_b = { url = "file:///path/to/plugin.wasm" }
-
-# This section contains a mapping of language name -> formatters. When the relevant language is to be formatted, pruner
-# will execute the formatters specified here in order.
-#
-# These can be named [formatters] or [plugins]
-[languages]
-markdown = ["prettier", "trim_newlines"]
-sql = ["pg_format", "trim_newlines", "plugin_b"]
-
-# Profiles are partial config overrides which can be applied selectively at runtime. More on this below.
-[profiles]
+```javascript
+console.log("Hello, world");
 ```
+````
 
-### Profiles
+And we can see `pruner` has successfully formatted both the outer Markdown document as well as the inner JavaScript code
+region!
 
-Profiles are snippets of config which, when applied, will overwrite the base config. These can be used to define
-variations to the formatter pipeline which are conditionally applied when calling Pruner.
-
-Profiles are applied through the `--profile` CLI flag and can be specified multiple times to apply multiple profiles.
-
-```toml
-[languages]
-markdown = ["prettier", "trim_newlines"]
-
-[profiles.trim]
-languages.markdown = ["trim_newlines"]
-```
-
-```bash
-cat README.md | pruner format --lang markdown --profile trim
-```
-
-Profiles probably aren't something that will be used extensively, but when you need to make slight adjustments in
-specific scenarios they can be a lifesaver.
-
-## Formatting Embedded Languages
-
-Pruner uses tree-sitter injection queries (`injections.scm`) to find regions in your document containing other embedded
-languages. These are typically shipped alongside grammars and are automatically included when loading the grammar for
-your language.
-
-A good example is Markdown which contains embedded languages inside code blocks. The official markdown grammar includes
-injection queries which describe these embedded languages and so Pruner automatically knows how to format these sections
-(provided you have the relevant formatters for the language configured, of course).
-
-You are also free to (and encouraged to!) write your own language injections to support formatting embedded languages
-not defined in an official grammar.
-
-Pruner loads language injection queries from the configured query 'search paths' by resolving
-`<search-path>/<language>/injections.scm`. As an example, to add injections queries for Rust you would need to place a
-file at `./queries/rust/injections.scm` and add `"./queries"` to the configured set of `query_paths`.
-
-Read **[this short guide](./docs/writing-injections.md)** for a more practical example on how to write your own queries.
-
-## Plugins
-
-Pruner plugins enable writing formatting behaviour in a way that is fast, versioned, and shareable. A plugin is
-essentially just a bundled function that takes source code in and returns altered source code. As Pruner evolves I do
-expect the Plugin interface and capabilities to grow beyond this.
-
-Plugins are WASM components that implement the **[pruner/plugin-api@1.0.0](./wit/world.wit)**
-[WIT](https://component-model.bytecodealliance.org/design/wit.html) interface. You can download the latest interface
-definition from the releases page. Plugins can be loaded from disk or from a remote URL.
-
-By using WASM Pruner allows authors to write plugins in any language of their choosing so long as it can be compiled to
-a WASM component. See [here](https://component-model.bytecodealliance.org/language-support.html) for a list of known
-supported languages.
-
-### Official Plugins
-
-- **[trim-newlines](https://github.com/pruner-formatter/plugin-trim-newlines)** - Trim leading/trailing newlines from
-  any language
-- **[clojure-comment-formatter](https://github.com/pruner-formatter/plugin-clojure-comment-formatter)** - Format and
-  align Clojure comments to the node they correspond to.
-
-### Community Plugins
-
-Feel free to open a PR contributing your own plugin(s)!
-
-### Authoring Plugins
-
-See the **[writing plugins](./docs/writing-plugins.md)** guide for a reference on how to build a plugin in Rust, or go
-check out one of the above plugins for a reference.
+See the **[project documentation](https://pruner-formatter.github.io)** for more information regarding configuration,
+plugins, and language injections.
 
 ## Acknowledgements
 
