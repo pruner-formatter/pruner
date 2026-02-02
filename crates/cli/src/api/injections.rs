@@ -2,18 +2,17 @@ use anyhow::Result;
 use std::{
   borrow::Cow,
   collections::{HashMap, HashSet},
-  ops::Deref,
 };
 use tree_sitter::{Parser, Point, QueryCursor, QueryProperty, Range, StreamingIterator};
 
 use super::{
-  directives::{escape, gsub, offset},
+  directives::{escape, gsub, indented, offset},
   grammar::Grammar,
 };
 
 pub fn get_lang_name(properties: &[QueryProperty]) -> Option<String> {
   for property in properties {
-    if property.key.deref() == "injection.language" {
+    if property.key.as_ref() == "injection.language" {
       return property.value.clone().map(String::from);
     }
   }
@@ -85,6 +84,16 @@ pub struct InjectedRegion {
   pub opts: InjectionOpts,
 }
 
+fn trim_indented_range(source: &[u8], mut range: Range) -> Range {
+  let (start_byte, end_byte) = indented::trim_bytes(source, range.start_byte, range.end_byte);
+
+  range.start_byte = start_byte;
+  range.end_byte = end_byte;
+  range.start_point = point_for_byte(source, start_byte);
+  range.end_point = point_for_byte(source, end_byte);
+  range
+}
+
 pub fn extract_language_injections(
   parser: &mut Parser,
   grammar: &Grammar,
@@ -120,8 +129,10 @@ pub fn extract_language_injections(
   > = HashMap::new();
 
   while let Some(query_match) = matches.next() {
-    let harcoded_lang_name = get_lang_name(query.property_settings(query_match.pattern_index));
+    let pattern_properties = query.property_settings(query_match.pattern_index);
+    let harcoded_lang_name = get_lang_name(pattern_properties);
     let is_hardcoded_lang = harcoded_lang_name.is_some();
+    let is_indented = indented::is_indented(pattern_properties);
 
     let mut lang_capture = None;
     let mut content_capture = None;
@@ -171,11 +182,15 @@ pub fn extract_language_injections(
     }
 
     let base_range = content_capture.node.range();
-    let range = if let Some(offset) = offset_modifiers.get(&content_capture.index) {
+    let mut range = if let Some(offset) = offset_modifiers.get(&content_capture.index) {
       offset::apply_offset_to_range(&source_str, &base_range, offset).unwrap_or(base_range)
     } else {
       base_range
     };
+
+    if is_indented {
+      range = trim_indented_range(source_with_newline.as_ref(), range);
+    }
 
     let escape_chars = escape::escape_chars(escape_modifiers, content_capture.index);
 

@@ -40,7 +40,7 @@ fn injected_regions_markdown() -> Result<()> {
       },
       lang: "markdown".into(),
       opts: InjectionOpts {
-        escape_chars: HashSet::from(["\"".to_string()])
+        escape_chars: HashSet::from(["\"".to_string()]),
       }
     }]
   );
@@ -85,7 +85,7 @@ fn injected_regions_newline() -> Result<()> {
         },
         lang: "markdown_inline".into(),
         opts: InjectionOpts {
-          escape_chars: HashSet::default()
+          escape_chars: HashSet::default(),
         }
       },
       InjectedRegion {
@@ -97,7 +97,7 @@ fn injected_regions_newline() -> Result<()> {
         },
         lang: "clojure".into(),
         opts: InjectionOpts {
-          escape_chars: HashSet::default()
+          escape_chars: HashSet::default(),
         }
       }
     ],

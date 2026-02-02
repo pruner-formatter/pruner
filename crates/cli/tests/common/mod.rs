@@ -56,6 +56,7 @@ pub fn languages() -> LanguageFormatters {
   HashMap::from([
     ("markdown".to_string(), vec!["prettier".into()]),
     ("clojure".to_string(), vec!["cljfmt".into()]),
+    ("typescript".to_string(), vec!["prettier".into()]),
   ])
 }
 

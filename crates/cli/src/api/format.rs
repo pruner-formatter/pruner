@@ -105,6 +105,7 @@ pub fn format(
         let formatted_str = String::from_utf8(formatted_sub_result)?;
         formatted_sub_result = text::escape_text(&formatted_str, &escape_chars).into_bytes();
       }
+
       text::strip_trailing_newlines(&mut formatted_sub_result);
       formatted_sub_result.extend_from_slice(&trailing_newlines);
       if indent_from_content && indent > 0 {
