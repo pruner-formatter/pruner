@@ -1,4 +1,5 @@
 use anyhow::Result;
+use regex::Regex;
 use std::{
   borrow::Cow,
   collections::{HashMap, HashSet},
@@ -33,13 +34,8 @@ fn parse_offset_predicate(pred: &QueryPredicate) -> Result<(u32, RangeOffset)> {
     anyhow::bail!("Offset predicate requires 5 arguments");
   }
 
-  let [
-    QueryPredicateArg::Capture(capture),
-    QueryPredicateArg::String(start_row),
-    QueryPredicateArg::String(start_col),
-    QueryPredicateArg::String(end_row),
-    QueryPredicateArg::String(end_col),
-  ] = pred.args.deref()
+  let [QueryPredicateArg::Capture(capture), QueryPredicateArg::String(start_row), QueryPredicateArg::String(start_col), QueryPredicateArg::String(end_row), QueryPredicateArg::String(end_col)] =
+    pred.args.deref()
   else {
     anyhow::bail!("Offset predicate contained unexpected arguments");
   };
@@ -106,6 +102,96 @@ fn get_escape_modifiers(predicates: &[QueryPredicate]) -> HashMap<u32, HashSet<S
   }
 
   map
+}
+
+fn parse_gsub_predicate(pred: &QueryPredicate) -> Result<(u32, String, String)> {
+  if pred.args.len() != 3 {
+    anyhow::bail!("Gsub predicate requires 3 arguments");
+  }
+
+  let [QueryPredicateArg::Capture(capture), QueryPredicateArg::String(pattern), QueryPredicateArg::String(replacement)] =
+    pred.args.deref()
+  else {
+    anyhow::bail!("Gsub predicate contained unexpected arguments");
+  };
+
+  Ok((*capture, pattern.to_string(), replacement.to_string()))
+}
+
+fn get_gsub_modifiers(predicates: &[QueryPredicate]) -> HashMap<u32, Vec<(String, String)>> {
+  let mut map: HashMap<u32, Vec<(String, String)>> = HashMap::new();
+  for pred in predicates {
+    if pred.operator.deref() != "gsub!" {
+      continue;
+    }
+
+    let Ok((capture, pattern, replacement)) = parse_gsub_predicate(pred) else {
+      continue;
+    };
+
+    map.entry(capture).or_default().push((pattern, replacement));
+  }
+
+  map
+}
+
+fn lua_replacement_to_regex(repl: &str) -> String {
+  // Lua `string.gsub` uses `%1`..`%9` (and `%0`) for capture references and `%%` for a literal `%`.
+  // Rust `regex` uses `$1`..`$9` (and `$0`) for capture references and `$$` for a literal `$`.
+  let mut out = String::with_capacity(repl.len());
+  let mut chars = repl.chars().peekable();
+
+  while let Some(c) = chars.next() {
+    match c {
+      '$' => out.push_str("$$"),
+      '%' => {
+        let Some(next) = chars.next() else {
+          out.push('%');
+          continue;
+        };
+
+        match next {
+          '%' => out.push('%'),
+          d if d.is_ascii_digit() => {
+            out.push('$');
+            out.push(d);
+          }
+          other => {
+            // Treat `%x` as escaping `x`.
+            if other == '$' {
+              out.push_str("$$")
+            } else {
+              out.push(other)
+            }
+          }
+        }
+      }
+      other => out.push(other),
+    }
+  }
+
+  out
+}
+
+fn apply_gsub_modifiers(text: &str, modifiers: &[(String, String)]) -> String {
+  let mut out = text.to_owned();
+
+  for (lua_pattern, lua_replacement) in modifiers {
+    let Ok(ast) = lua_pattern::parse(lua_pattern) else {
+      continue;
+    };
+    let Ok(re_src) = lua_pattern::try_to_regex(&ast, false, false) else {
+      continue;
+    };
+    let Ok(re) = Regex::new(&re_src) else {
+      continue;
+    };
+
+    let repl = lua_replacement_to_regex(lua_replacement);
+    out = re.replace_all(&out, repl.as_str()).into_owned();
+  }
+
+  out
 }
 
 fn point_to_byte(source: &str, point: Point) -> Option<usize> {
@@ -240,6 +326,7 @@ pub fn extract_language_injections(
 
   while let Some(query_match) = matches.next() {
     let harcoded_lang_name = get_lang_name(query.property_settings(query_match.pattern_index));
+    let is_hardcoded_lang = harcoded_lang_name.is_some();
 
     let mut lang_capture = None;
     let mut content_capture = None;
@@ -254,7 +341,17 @@ pub fn extract_language_injections(
       }
     }
 
-    let Some(lang_name) = harcoded_lang_name.or_else(|| {
+    let Some(content_capture) = content_capture else {
+      continue;
+    };
+
+    let predicates = query.general_predicates(query_match.pattern_index);
+    let offset_modifiers = get_offset_modifiers(predicates);
+    let escape_modifiers = get_escape_modifiers(predicates);
+    let gsub_modifiers = get_gsub_modifiers(predicates);
+
+    let lang_capture_index = lang_capture.as_ref().map(|c| c.index);
+    let Some(mut lang_name) = harcoded_lang_name.or_else(|| {
       lang_capture.and_then(|capture| {
         capture
           .node
@@ -266,13 +363,13 @@ pub fn extract_language_injections(
       continue;
     };
 
-    let Some(content_capture) = content_capture else {
-      continue;
-    };
-
-    let predicates = query.general_predicates(query_match.pattern_index);
-    let offset_modifiers = get_offset_modifiers(predicates);
-    let escape_modifiers = get_escape_modifiers(predicates);
+    if !is_hardcoded_lang {
+      if let Some(lang_capture_index) = lang_capture_index {
+        if let Some(modifiers) = gsub_modifiers.get(&lang_capture_index) {
+          lang_name = apply_gsub_modifiers(&lang_name, modifiers);
+        }
+      }
+    }
 
     let range = if let Some(offset) = offset_modifiers.get(&content_capture.index) {
       apply_offset_to_range(&source_str, &content_capture.node.range(), offset)

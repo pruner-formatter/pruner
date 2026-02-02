@@ -27,6 +27,10 @@ globset = "0.4"
 log = "0.4"
 env_logger = "0.11"
 
+# Used to support Tree-sitter query directives like `#gsub!` which rely on Lua pattern syntax.
+lua-pattern = { version = "0.1.3", features = ["to-regex"] }
+regex = "1"
+
 [dev-dependencies]
 
 fslock = "0.2"

@@ -11,6 +11,7 @@ prepare:
     git clone https://github.com/tree-sitter-grammars/tree-sitter-markdown --depth 1 tests/fixtures/grammars/markdown
     git clone https://github.com/sogaiu/tree-sitter-clojure --depth 1 tests/fixtures/grammars/clojure
     git clone https://github.com/derekstride/tree-sitter-sql --depth 1 --branch gh-pages tests/fixtures/grammars/sql
+    git clone https://github.com/nix-community/tree-sitter-nix --depth 1 tests/fixtures/grammars/nix
 
 build:
     cargo build --release
