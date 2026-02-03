@@ -37,7 +37,9 @@ fn gsub_directive_test() -> Result<()> {
         end_point: Point { row: 5, column: 4 }
       },
       lang: "javascript".into(),
-      opts: InjectionOpts { escape_chars: HashSet::new() }
+      opts: InjectionOpts {
+        escape_chars: HashSet::new()
+      }
     }]
   );
 
