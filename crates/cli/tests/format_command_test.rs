@@ -422,3 +422,36 @@ fn nix_embeddings_trim_directive_test() -> Result<()> {
 
   Ok(())
 }
+
+#[test]
+fn nix_templated_embeddings_test() -> Result<()> {
+  let grammars = common::grammars()?;
+  let formatters = common::formatters();
+  let languages = common::languages();
+  let wasm_formatter = WasmFormatter::new("cache".into())?;
+
+  let source = common::load_file("nix_templated_embeddings/input.nix");
+
+  let result = format::format(
+    source.as_bytes(),
+    &FormatOpts {
+      printwidth: 80,
+      language: "nix",
+    },
+    true,
+    true,
+    &FormatContext {
+      grammars: &grammars,
+      languages: &languages,
+      formatters: &formatters,
+      wasm_formatter: &wasm_formatter,
+    },
+  )
+  .unwrap();
+
+  let expected = common::load_file("nix_templated_embeddings/output.nix");
+
+  assert_eq!(String::from_utf8(result).unwrap(), expected);
+
+  Ok(())
+}
