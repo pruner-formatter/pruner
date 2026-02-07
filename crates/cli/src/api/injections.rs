@@ -6,7 +6,7 @@ use std::{
 use tree_sitter::{Parser, Point, QueryCursor, QueryProperty, Range, StreamingIterator};
 
 use super::{
-  directives::{escape, gsub, indented, offset},
+  directives::{escape, gsub, indented, offset, trim},
   grammar::Grammar,
 };
 
@@ -125,6 +125,7 @@ pub fn extract_language_injections(
       HashMap<u32, offset::RangeOffset>,
       HashMap<u32, HashSet<String>>,
       HashMap<u32, Vec<gsub::GsubRule>>,
+      HashMap<u32, trim::TrimSpec>,
     ),
   > = HashMap::new();
 
@@ -151,7 +152,7 @@ pub fn extract_language_injections(
       continue;
     };
 
-    let (offset_modifiers, escape_modifiers, gsub_modifiers) = directives_cache
+    let (offset_modifiers, escape_modifiers, gsub_modifiers, trim_modifiers) = directives_cache
       .entry(query_match.pattern_index)
       .or_insert_with(|| {
         let predicates = query.general_predicates(query_match.pattern_index);
@@ -159,6 +160,7 @@ pub fn extract_language_injections(
           offset::collect(predicates),
           escape::collect(predicates),
           gsub::collect(predicates),
+          trim::collect(predicates),
         )
       });
 
@@ -187,6 +189,19 @@ pub fn extract_language_injections(
     } else {
       base_range
     };
+
+    if let Some(trim_spec) = trim_modifiers.get(&content_capture.index) {
+      let (start_byte, end_byte) = trim::apply_trim(
+        source_with_newline.as_ref(),
+        range.start_byte,
+        range.end_byte,
+        *trim_spec,
+      );
+      range.start_byte = start_byte;
+      range.end_byte = end_byte;
+      range.start_point = point_for_byte(source_with_newline.as_ref(), start_byte);
+      range.end_point = point_for_byte(source_with_newline.as_ref(), end_byte);
+    }
 
     if is_indented {
       range = trim_indented_range(source_with_newline.as_ref(), range);

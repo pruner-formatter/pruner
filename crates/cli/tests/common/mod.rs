@@ -41,12 +41,17 @@ pub fn formatters() -> FormatterSpecs {
 
 #[allow(dead_code)]
 pub fn grammars() -> Result<Grammars> {
+  grammars_with_queries(&["tests/fixtures/queries".into()])
+}
+
+#[allow(dead_code)]
+pub fn grammars_with_queries(query_paths: &[PathBuf]) -> Result<Grammars> {
   let mut file = LockFile::open("tests/fixtures/.build.lock")?;
   file.lock()?;
 
   grammar::load_grammars(
     &["tests/fixtures/grammars".into()],
-    &["tests/fixtures/queries".into()],
+    query_paths,
     Some("tests/fixtures/.build".into()),
   )
 }
