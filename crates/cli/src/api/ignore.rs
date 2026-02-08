@@ -46,13 +46,21 @@ pub(crate) fn collect_ignore_ranges(
   if let Some(ignore_query) = ignore_query {
     let mut cursor = QueryCursor::new();
     let mut matches = cursor.matches(ignore_query, root, source);
-    let Some(ignore_capture) = ignore_query.capture_index_for_name("pruner.ignore.marker") else {
+    let ignore_target_capture = ignore_query.capture_index_for_name("pruner.ignore");
+    let ignore_marker_capture =
+      ignore_query.capture_index_for_name("pruner.ignore.marker");
+
+    if ignore_target_capture.is_none() && ignore_marker_capture.is_none() {
       return ignore_ranges;
-    };
+    }
 
     while let Some(query_match) = matches.next() {
       for capture in query_match.captures {
-        if capture.index == ignore_capture {
+        if Some(capture.index) == ignore_target_capture {
+          ignore_ranges.push(capture.node.range());
+        }
+
+        if Some(capture.index) == ignore_marker_capture {
           add_marker(&mut ignore_ranges, capture.node);
         }
       }
