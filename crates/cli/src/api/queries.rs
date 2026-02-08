@@ -72,3 +72,18 @@ pub fn load_injections_query(
   let query_content = read_query(search_paths, name, "injections.scm", &base_queries)?;
   Query::new(lang, &query_content).map_err(|err| anyhow::format_err!("{err:?}"))
 }
+
+pub fn load_optional_query(
+  lang: &Language,
+  name: &str,
+  filename: &str,
+  search_paths: &[PathBuf],
+) -> Result<Option<Query>> {
+  let query_content = read_query(search_paths, name, filename, "")?;
+  if query_content.trim().is_empty() {
+    return Ok(None);
+  }
+
+  let query = Query::new(lang, &query_content).map_err(|err| anyhow::format_err!("{err:?}"))?;
+  Ok(Some(query))
+}

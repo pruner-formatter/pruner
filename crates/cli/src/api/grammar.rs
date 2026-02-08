@@ -12,6 +12,7 @@ pub struct Grammar {
   pub name: String,
   pub lang: Language,
   pub injections: Query,
+  pub pruner_ignore: Option<Query>,
 }
 
 pub type Grammars = HashMap<String, Grammar>;
@@ -59,12 +60,20 @@ fn load_grammars_from_path(
       query_search_paths,
     )?;
 
+    let pruner_ignore = queries::load_optional_query(
+      &language,
+      &config.language_name,
+      "pruner/ignore.scm",
+      query_search_paths,
+    )?;
+
     languages.insert(
       config.language_name.clone(),
       Grammar {
         name: config.language_name.clone(),
         lang: language,
         injections: injections_query,
+        pruner_ignore,
       },
     );
   }
@@ -85,7 +94,11 @@ pub fn load_grammars(
         .filter_map(|entry| match entry {
           Ok(entry) => {
             let path = entry.path();
-            if path.is_dir() { Some(path) } else { None }
+            if path.is_dir() {
+              Some(path)
+            } else {
+              None
+            }
           }
           Err(_) => None,
         });
