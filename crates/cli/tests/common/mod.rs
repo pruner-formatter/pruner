@@ -66,6 +66,11 @@ pub fn languages() -> LanguageFormatters {
 }
 
 #[allow(dead_code)]
+pub fn language_aliases() -> HashMap<String, String> {
+  HashMap::new()
+}
+
+#[allow(dead_code)]
 pub fn load_file(path: &str) -> String {
   let filepath = PathBuf::from("tests/fixtures/tests/").join(path);
   let mut file = File::open(filepath).expect("File should exist");

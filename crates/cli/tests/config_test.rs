@@ -310,3 +310,61 @@ rust = ["rustfmt"]
     ]))
   );
 }
+
+#[test]
+fn loads_and_normalizes_language_aliases() {
+  let temp_dir = unique_temp_dir();
+  let config_path = temp_dir.join("config.toml");
+
+  let mut file = File::create(&config_path).expect("should create config file");
+  writeln!(
+    file,
+    r#"
+[language_aliases]
+typescript = ["ts", "tsx"]
+"#
+  )
+  .expect("should write config file");
+
+  let config = pruner::config::load(pruner::config::LoadOpts {
+    config_path: Some(config_path),
+    profiles: Vec::new(),
+  })
+  .expect("should load config");
+
+  assert_eq!(
+    config.language_aliases,
+    HashMap::from([
+      ("ts".to_string(), "typescript".to_string()),
+      ("tsx".to_string(), "typescript".to_string()),
+    ])
+  );
+}
+
+#[test]
+fn language_alias_conflict_is_an_error() {
+  let temp_dir = unique_temp_dir();
+  let config_path = temp_dir.join("config.toml");
+
+  let mut file = File::create(&config_path).expect("should create config file");
+  writeln!(
+    file,
+    r#"
+[language_aliases]
+typescript = ["ts"]
+rust = ["ts"]
+"#
+  )
+  .expect("should write config file");
+
+  let err = pruner::config::load(pruner::config::LoadOpts {
+    config_path: Some(config_path),
+    profiles: Vec::new(),
+  })
+  .unwrap_err();
+
+  assert!(
+    err.to_string().contains("Language alias 'ts' conflicts"),
+    "Unexpected error: {err}"
+  );
+}

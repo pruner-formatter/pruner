@@ -114,6 +114,7 @@ impl From<&str> for LanguageFormatSpec {
 
 pub type LanguageFormatSpecs = Vec<LanguageFormatSpec>;
 pub type LanguageFormatters = HashMap<String, LanguageFormatSpecs>;
+pub type LanguageAliasSpecs = HashMap<String, Vec<String>>;
 
 /// Profile-specific configuration overrides.
 /// Has the same fields as ConfigFile (except profiles) to allow full override capability.
@@ -127,6 +128,7 @@ pub struct ProfileConfig {
 
   pub grammars: Option<GrammarSpecs>,
   pub languages: Option<LanguageFormatters>,
+  pub language_aliases: Option<LanguageAliasSpecs>,
   pub formatters: Option<FormatterSpecs>,
   pub plugins: Option<PluginSpecs>,
 }
@@ -162,6 +164,7 @@ pub struct ConfigFile {
 
   pub grammars: Option<GrammarSpecs>,
   pub languages: Option<LanguageFormatters>,
+  pub language_aliases: Option<LanguageAliasSpecs>,
   pub formatters: Option<FormatterSpecs>,
   pub plugins: Option<PluginSpecs>,
 
@@ -181,6 +184,7 @@ pub struct Config {
 
   pub grammars: GrammarSpecs,
   pub languages: LanguageFormatters,
+  pub language_aliases: HashMap<String, String>,
   pub formatters: FormatterSpecs,
   pub plugins: PluginSpecs,
 }
@@ -248,6 +252,7 @@ impl ConfigFile {
         .or_else(|| base.grammar_build_dir.clone()),
       grammars: merge_maps(&base.grammars, &overlay.grammars),
       languages: merge_maps(&base.languages, &overlay.languages),
+      language_aliases: merge_maps(&base.language_aliases, &overlay.language_aliases),
       formatters: merge_maps(&base.formatters, &overlay.formatters),
       plugins: merge_maps(&base.plugins, &overlay.plugins),
       profiles: merge_maps(&base.profiles, &overlay.profiles),
@@ -265,6 +270,7 @@ impl ConfigFile {
       grammar_build_dir: profile.grammar_build_dir.clone().or(self.grammar_build_dir),
       grammars: merge_maps(&self.grammars, &profile.grammars),
       languages: merge_maps(&self.languages, &profile.languages),
+      language_aliases: merge_maps(&self.language_aliases, &profile.language_aliases),
       formatters: merge_maps(&self.formatters, &profile.formatters),
       plugins: merge_maps(&self.plugins, &profile.plugins),
       profiles: self.profiles,
@@ -353,6 +359,23 @@ pub fn load(opts: LoadOpts) -> Result<Config> {
     config_file = config_file.apply_profile(&profile);
   }
 
+  let mut alias_to_canonical: HashMap<String, String> = HashMap::new();
+  for (canonical, aliases) in config_file.language_aliases.clone().unwrap_or_default() {
+    for alias in aliases {
+      if let Some(existing) = alias_to_canonical.get(&alias)
+        && existing != &canonical
+      {
+        anyhow::bail!(
+          "Language alias '{}' conflicts: maps to '{}' and '{}'",
+          alias,
+          existing,
+          canonical
+        );
+      }
+      alias_to_canonical.insert(alias, canonical.clone());
+    }
+  }
+
   Ok(Config {
     query_paths: config_file.query_paths.unwrap_or_default(),
     grammar_paths: config_file.grammar_paths.unwrap_or_default(),
@@ -365,6 +388,7 @@ pub fn load(opts: LoadOpts) -> Result<Config> {
     cache_dir: xdg_dirs.place_data_file("cache")?,
     grammars: config_file.grammars.unwrap_or_default(),
     languages: config_file.languages.unwrap_or_default(),
+    language_aliases: alias_to_canonical,
     formatters: config_file.formatters.unwrap_or_default(),
     plugins: config_file.plugins.unwrap_or_default(),
   })

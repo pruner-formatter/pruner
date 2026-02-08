@@ -12,6 +12,7 @@ fn format_command() -> Result<()> {
   let grammars = common::grammars()?;
   let formatters = common::formatters();
   let languages = common::languages();
+  let language_aliases = common::language_aliases();
   let wasm_formatter = WasmFormatter::new("cache".into())?;
 
   let source = common::load_file("format_command/input.clj");
@@ -27,6 +28,7 @@ fn format_command() -> Result<()> {
     &FormatContext {
       grammars: &grammars,
       languages: &languages,
+      language_aliases: &language_aliases,
       formatters: &formatters,
       wasm_formatter: &wasm_formatter,
     },
@@ -45,6 +47,7 @@ fn fail_on_empty_stdout() -> Result<()> {
   let grammars = common::grammars()?;
   let mut formatters = common::formatters();
   let languages = common::languages();
+  let language_aliases = common::language_aliases();
   let wasm_formatter = WasmFormatter::new("cache".into())?;
 
   formatters.insert(
@@ -70,6 +73,7 @@ fn fail_on_empty_stdout() -> Result<()> {
     &FormatContext {
       grammars: &grammars,
       languages: &languages,
+      language_aliases: &language_aliases,
       formatters: &formatters,
       wasm_formatter: &wasm_formatter,
     },
@@ -95,6 +99,7 @@ fn format_escaped() -> Result<()> {
   let grammars = common::grammars()?;
   let formatters = common::formatters();
   let languages = common::languages();
+  let language_aliases = common::language_aliases();
   let wasm_formatter = WasmFormatter::new("cache".into())?;
 
   let source = common::load_file("format_escaped/input.clj");
@@ -110,6 +115,7 @@ fn format_escaped() -> Result<()> {
     &FormatContext {
       grammars: &grammars,
       languages: &languages,
+      language_aliases: &language_aliases,
       formatters: &formatters,
       wasm_formatter: &wasm_formatter,
     },
@@ -128,6 +134,7 @@ fn markdown_with_escape_characters() -> Result<()> {
   let grammars = common::grammars()?;
   let formatters = common::formatters();
   let languages = common::languages();
+  let language_aliases = common::language_aliases();
   let wasm_formatter = WasmFormatter::new("cache".into())?;
 
   let source = common::load_file("markdown_with_escape_characters/input.md");
@@ -143,6 +150,7 @@ fn markdown_with_escape_characters() -> Result<()> {
     &FormatContext {
       grammars: &grammars,
       languages: &languages,
+      language_aliases: &language_aliases,
       formatters: &formatters,
       wasm_formatter: &wasm_formatter,
     },
@@ -161,6 +169,7 @@ fn format_double_escaped() -> Result<()> {
   let grammars = common::grammars()?;
   let formatters = common::formatters();
   let languages = common::languages();
+  let language_aliases = common::language_aliases();
   let wasm_formatter = WasmFormatter::new("cache".into())?;
 
   let source = common::load_file("double_escaped/input.clj");
@@ -176,6 +185,7 @@ fn format_double_escaped() -> Result<()> {
     &FormatContext {
       grammars: &grammars,
       languages: &languages,
+      language_aliases: &language_aliases,
       formatters: &formatters,
       wasm_formatter: &wasm_formatter,
     },
@@ -194,6 +204,7 @@ fn format_injections_only() -> Result<()> {
   let grammars = common::grammars()?;
   let formatters = common::formatters();
   let languages = common::languages();
+  let language_aliases = common::language_aliases();
   let wasm_formatter = WasmFormatter::new("cache".into())?;
 
   let source = common::load_file("format_injections_only/input.clj");
@@ -209,6 +220,7 @@ fn format_injections_only() -> Result<()> {
     &FormatContext {
       grammars: &grammars,
       languages: &languages,
+      language_aliases: &language_aliases,
       formatters: &formatters,
       wasm_formatter: &wasm_formatter,
     },
@@ -227,6 +239,7 @@ fn offset_dependent_printwidth() -> Result<()> {
   let grammars = common::grammars()?;
   let formatters = common::formatters();
   let languages = common::languages();
+  let language_aliases = common::language_aliases();
   let wasm_formatter = WasmFormatter::new("cache".into())?;
 
   let source = common::load_file("offset_dependent_printwidth/input.clj");
@@ -242,6 +255,7 @@ fn offset_dependent_printwidth() -> Result<()> {
     &FormatContext {
       grammars: &grammars,
       languages: &languages,
+      language_aliases: &language_aliases,
       formatters: &formatters,
       wasm_formatter: &wasm_formatter,
     },
@@ -260,6 +274,7 @@ fn format_fixes_indent() -> Result<()> {
   let grammars = common::grammars()?;
   let formatters = common::formatters();
   let languages = common::languages();
+  let language_aliases = common::language_aliases();
   let wasm_formatter = WasmFormatter::new("cache".into())?;
 
   let source = common::load_file("format_fixes_indent/input.clj");
@@ -275,6 +290,7 @@ fn format_fixes_indent() -> Result<()> {
     &FormatContext {
       grammars: &grammars,
       languages: &languages,
+      language_aliases: &language_aliases,
       formatters: &formatters,
       wasm_formatter: &wasm_formatter,
     },
@@ -293,6 +309,7 @@ fn markdown_with_html() -> Result<()> {
   let grammars = common::grammars()?;
   let formatters = common::formatters();
   let languages = common::languages();
+  let language_aliases = common::language_aliases();
   let wasm_formatter = WasmFormatter::new("cache".into())?;
 
   let source = common::load_file("markdown_with_html/input.md");
@@ -308,6 +325,7 @@ fn markdown_with_html() -> Result<()> {
     &FormatContext {
       grammars: &grammars,
       languages: &languages,
+      language_aliases: &language_aliases,
       formatters: &formatters,
       wasm_formatter: &wasm_formatter,
     },
@@ -326,6 +344,7 @@ fn utf8_docstring() -> Result<()> {
   let grammars = common::grammars()?;
   let formatters = common::formatters();
   let languages = common::languages();
+  let language_aliases = common::language_aliases();
   let wasm_formatter = WasmFormatter::new("cache".into())?;
 
   let source = common::load_file("utf8_docstring/input.clj");
@@ -341,6 +360,7 @@ fn utf8_docstring() -> Result<()> {
     &FormatContext {
       grammars: &grammars,
       languages: &languages,
+      language_aliases: &language_aliases,
       formatters: &formatters,
       wasm_formatter: &wasm_formatter,
     },
@@ -359,6 +379,7 @@ fn nix_embeddings_test() -> Result<()> {
   let grammars = common::grammars()?;
   let formatters = common::formatters();
   let languages = common::languages();
+  let language_aliases = common::language_aliases();
   let wasm_formatter = WasmFormatter::new("cache".into())?;
 
   let source = common::load_file("nix_embeddings/input.nix");
@@ -374,6 +395,7 @@ fn nix_embeddings_test() -> Result<()> {
     &FormatContext {
       grammars: &grammars,
       languages: &languages,
+      language_aliases: &language_aliases,
       formatters: &formatters,
       wasm_formatter: &wasm_formatter,
     },
@@ -396,6 +418,7 @@ fn nix_embeddings_trim_directive_test() -> Result<()> {
 
   let formatters = common::formatters();
   let languages = common::languages();
+  let language_aliases = common::language_aliases();
   let wasm_formatter = WasmFormatter::new("cache".into())?;
 
   let source = common::load_file("nix_embeddings/input.nix");
@@ -411,6 +434,7 @@ fn nix_embeddings_trim_directive_test() -> Result<()> {
     &FormatContext {
       grammars: &grammars,
       languages: &languages,
+      language_aliases: &language_aliases,
       formatters: &formatters,
       wasm_formatter: &wasm_formatter,
     },
@@ -428,6 +452,7 @@ fn nix_templated_embeddings_test() -> Result<()> {
   let grammars = common::grammars()?;
   let formatters = common::formatters();
   let languages = common::languages();
+  let language_aliases = common::language_aliases();
   let wasm_formatter = WasmFormatter::new("cache".into())?;
 
   let source = common::load_file("nix_templated_embeddings/input.nix");
@@ -443,6 +468,7 @@ fn nix_templated_embeddings_test() -> Result<()> {
     &FormatContext {
       grammars: &grammars,
       languages: &languages,
+      language_aliases: &language_aliases,
       formatters: &formatters,
       wasm_formatter: &wasm_formatter,
     },

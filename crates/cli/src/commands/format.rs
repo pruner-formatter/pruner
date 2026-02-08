@@ -163,6 +163,7 @@ pub fn handle(args: FormatArgs, global: GlobalOpts) -> Result<()> {
   let context = FormatContext {
     grammars: &grammars,
     languages: &config.languages,
+    language_aliases: &config.language_aliases,
     formatters: &config.formatters,
     wasm_formatter: &wasm_formatter,
   };

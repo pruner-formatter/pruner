@@ -15,6 +15,7 @@ pub use runner::FormatOpts;
 pub struct FormatContext<'a> {
   pub grammars: &'a Grammars,
   pub languages: &'a LanguageFormatters,
+  pub language_aliases: &'a std::collections::HashMap<String, String>,
   pub formatters: &'a FormatterSpecs,
   pub wasm_formatter: &'a WasmFormatter,
 }
@@ -95,7 +96,11 @@ pub fn format(
         &unescaped_source,
         &FormatOpts {
           printwidth: adjusted_printwidth.max(1),
-          language: &region.lang,
+          language: format_context
+            .language_aliases
+            .get(&region.lang)
+            .map(|s| s.as_str())
+            .unwrap_or(region.lang.as_str()),
         },
         format_root,
         false,

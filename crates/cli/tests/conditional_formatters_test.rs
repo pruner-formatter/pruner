@@ -14,6 +14,7 @@ mod common;
 fn injections_only_pipeline_condition_test() -> Result<()> {
   let grammars = common::grammars()?;
   let formatters = common::formatters();
+  let language_aliases = common::language_aliases();
   let wasm_formatter = WasmFormatter::new("cache".into())?;
 
   let languages = HashMap::from([(
@@ -38,6 +39,7 @@ fn injections_only_pipeline_condition_test() -> Result<()> {
     &FormatContext {
       grammars: &grammars,
       languages: &languages,
+      language_aliases: &language_aliases,
       formatters: &formatters,
       wasm_formatter: &wasm_formatter,
     },
@@ -62,6 +64,7 @@ fn injections_only_pipeline_condition_test() -> Result<()> {
     &FormatContext {
       grammars: &grammars,
       languages: &languages,
+      language_aliases: &language_aliases,
       formatters: &formatters,
       wasm_formatter: &wasm_formatter,
     },
@@ -83,6 +86,7 @@ fn injections_only_pipeline_condition_test() -> Result<()> {
 fn root_only_pipeline_condition_test() -> Result<()> {
   let grammars = common::grammars()?;
   let formatters = common::formatters();
+  let language_aliases = common::language_aliases();
   let wasm_formatter = WasmFormatter::new("cache".into())?;
 
   let languages = HashMap::from([(
@@ -107,6 +111,7 @@ fn root_only_pipeline_condition_test() -> Result<()> {
     &FormatContext {
       grammars: &grammars,
       languages: &languages,
+      language_aliases: &language_aliases,
       formatters: &formatters,
       wasm_formatter: &wasm_formatter,
     },
@@ -131,6 +136,7 @@ fn root_only_pipeline_condition_test() -> Result<()> {
     &FormatContext {
       grammars: &grammars,
       languages: &languages,
+      language_aliases: &language_aliases,
       formatters: &formatters,
       wasm_formatter: &wasm_formatter,
     },
