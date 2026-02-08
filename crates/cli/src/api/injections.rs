@@ -7,6 +7,7 @@ use tree_sitter::{Node, Parser, Point, QueryCursor, QueryProperty, Range, Stream
 
 use super::{
   directives::{escape, gsub, indented, offset, trim},
+  ignore,
   grammar::Grammar,
 };
 
@@ -142,6 +143,9 @@ pub fn extract_language_injections(
   let tree = parser
     .parse(source_with_newline.as_ref(), None)
     .ok_or_else(|| anyhow::anyhow!("Parse returned None"))?;
+
+  let ignore_ranges =
+    ignore::collect_ignore_ranges(tree.root_node(), source_with_newline.as_ref());
 
   let mut fragments: HashMap<GroupKey, InjectedRegionFragment> = HashMap::new();
   let mut fragment_key_order: Vec<GroupKey> = Vec::new();
@@ -290,6 +294,10 @@ pub fn extract_language_injections(
     let props = query.property_settings(fragment.pattern_index);
     if indented::is_indented(props) {
       range = trim_indented_range(source_with_newline.as_ref(), range);
+    }
+
+    if ignore::is_ignored(&range, &ignore_ranges) {
+      continue;
     }
 
     injected_regions.push(InjectedRegion {

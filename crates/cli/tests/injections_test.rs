@@ -48,12 +48,12 @@ fn injected_regions_markdown() -> Result<()> {
   Ok(())
 }
 
-#[test]
 /// Some grammars (like markdown) require the file to end with a newline. When used in a clojure
 /// docstring, however, we might not end on a newline (see the example below).
 ///
 /// Pruner internally appends a newline to the injected region before re-parsing it to get around
 /// this behaviour. This is testing that scenario.
+#[test]
 fn injected_regions_newline() -> Result<()> {
   let grammars = common::grammars()?;
 
