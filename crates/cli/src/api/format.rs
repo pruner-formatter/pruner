@@ -35,21 +35,30 @@ pub fn format(
   format_context: &FormatContext,
 ) -> Result<Vec<u8>> {
   let mut parser = Parser::new();
+  let language = format_context
+    .language_aliases
+    .get(opts.language)
+    .map(|s| s.as_str())
+    .unwrap_or(opts.language);
 
   let mut formatted_result = Vec::from(source);
 
   if !is_root || format_root {
     for format_spec in format_context
       .languages
-      .get(opts.language)
+      .get(language)
       .unwrap_or(&Vec::new())
     {
       if (is_root && format_spec.run_in_root()) || (!is_root && format_spec.run_in_injections()) {
         let formatter_name = format_spec.formatter();
 
         formatted_result = if let Some(formatter) = format_context.formatters.get(formatter_name) {
-          runner::format(formatter, &formatted_result, opts)
-            .context(format!("Failed to run formatter: {formatter_name}"))?
+          runner::format(
+            formatter,
+            &formatted_result,
+            &FormatOpts { language, ..*opts },
+          )
+          .context(format!("Failed to run formatter: {formatter_name}"))?
         } else if format_context.wasm_formatter.has_formatter(formatter_name) {
           format_context
             .wasm_formatter
@@ -61,7 +70,7 @@ pub fn format(
     }
   }
 
-  let Some(grammar) = format_context.grammars.get(opts.language) else {
+  let Some(grammar) = format_context.grammars.get(language) else {
     return Ok(formatted_result);
   };
 
@@ -107,11 +116,7 @@ pub fn format(
         &unescaped_source,
         &FormatOpts {
           printwidth: adjusted_printwidth.max(1),
-          language: format_context
-            .language_aliases
-            .get(&region.lang)
-            .map(|s| s.as_str())
-            .unwrap_or(region.lang.as_str()),
+          language: &region.lang,
           source_file: opts.source_file,
         },
         format_root,
@@ -215,29 +220,31 @@ pub fn format_files<'a>(
   let exclude_matcher = exclude_glob_builder.build()?;
 
   let walker = ignore::WalkBuilder::new(dir).current_dir(dir).build();
-  Ok(walker
-    .filter_map(|entry| entry.ok())
-    .filter(|entry| !entry.path().is_dir())
-    .filter(move |entry| {
-      include_matcher.is_match(entry.path()) && !exclude_matcher.is_match(entry.path())
-    })
-    .par_bridge()
-    .filter_map(move |entry| {
-      let path = entry.path().to_path_buf();
-      match format_file(&path, write, opts, skip_root, format_context) {
-        Err(err) => {
-          let path_str = path.to_string_lossy();
-          Some(Err(err).context(format!("Failed to format file {path_str}")))
+  Ok(
+    walker
+      .filter_map(|entry| entry.ok())
+      .filter(|entry| !entry.path().is_dir())
+      .filter(move |entry| {
+        include_matcher.is_match(entry.path()) && !exclude_matcher.is_match(entry.path())
+      })
+      .par_bridge()
+      .filter_map(move |entry| {
+        let path = entry.path().to_path_buf();
+        match format_file(&path, write, opts, skip_root, format_context) {
+          Err(err) => {
+            let path_str = path.to_string_lossy();
+            Some(Err(err).context(format!("Failed to format file {path_str}")))
+          }
+          Ok(Some((original, formatted))) => {
+            let path = path.to_string_lossy();
+            Some(Ok(FormatFileChange {
+              path: String::from(path),
+              original,
+              formatted,
+            }))
+          }
+          Ok(None) => None,
         }
-        Ok(Some((original, formatted))) => {
-          let path = path.to_string_lossy();
-          Some(Ok(FormatFileChange {
-            path: String::from(path),
-            original,
-            formatted,
-          }))
-        }
-        Ok(None) => None,
-      }
-    }))
+      }),
+  )
 }
