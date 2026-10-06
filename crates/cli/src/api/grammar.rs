@@ -41,9 +41,17 @@ fn load_grammars_from_path(
   for (config, path) in loader.get_all_language_configurations() {
     let src_path = path.join("src");
 
-    let language = loader
-      .load_language_at_path(CompileConfig::new(&src_path, None, None))
-      .with_context(|| format!("Failed to load language {}", config.language_name))?;
+    let language = match loader.load_language_at_path(CompileConfig::new(&src_path, None, None)) {
+      Ok(language) => language,
+      Err(err) => {
+        log::warn!(
+          "Skipping grammar {} at {:?}: failed to load language: {err}",
+          config.language_name,
+          path
+        );
+        continue;
+      }
+    };
 
     let injections = config
       .injections_filenames
@@ -53,12 +61,22 @@ fn load_grammars_from_path(
       .map(|path| config.root_path.join(path))
       .collect::<Vec<_>>();
 
-    let injections_query = queries::load_injections_query(
+    let injections_query = match queries::load_injections_query(
       &language,
       &config.language_name,
       &injections,
       query_search_paths,
-    )?;
+    ) {
+      Ok(query) => query,
+      Err(err) => {
+        log::warn!(
+          "Skipping grammar {} at {:?}: failed to load query: {err}",
+          config.language_name,
+          path
+        );
+        continue;
+      }
+    };
 
     let pruner_ignore = queries::load_optional_query(
       &language,
@@ -94,11 +112,7 @@ pub fn load_grammars(
         .filter_map(|entry| match entry {
           Ok(entry) => {
             let path = entry.path();
-            if path.is_dir() {
-              Some(path)
-            } else {
-              None
-            }
+            if path.is_dir() { Some(path) } else { None }
           }
           Err(_) => None,
         });

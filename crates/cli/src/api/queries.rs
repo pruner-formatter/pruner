@@ -4,13 +4,22 @@ use tree_sitter::{Language, Query};
 
 fn read_files(paths: &[PathBuf]) -> Result<String> {
   let mut out = String::new();
-  for (i, p) in paths.iter().enumerate() {
-    let contents = fs::read_to_string(p)
-      .map_err(|e| anyhow::format_err!("Failed to read {}: {e}", p.display()))?;
-    if i > 0 {
+  let mut wrote_any = false;
+
+  for p in paths {
+    let contents = match fs::read_to_string(p) {
+      Ok(contents) => contents,
+      Err(err) => {
+        log::warn!("Failed to read {}: {err}", p.display());
+        continue;
+      }
+    };
+
+    if wrote_any {
       out.push('\n');
     }
     out.push_str(&contents);
+    wrote_any = true;
   }
   Ok(out)
 }
@@ -79,11 +88,22 @@ pub fn load_optional_query(
   filename: &str,
   search_paths: &[PathBuf],
 ) -> Result<Option<Query>> {
-  let query_content = read_query(search_paths, name, filename, "")?;
+  let query_content = match read_query(search_paths, name, filename, "") {
+    Ok(query_content) => query_content,
+    Err(err) => {
+      log::warn!("Skipping optional query {}/{}: {err}", name, filename);
+      return Ok(None);
+    }
+  };
   if query_content.trim().is_empty() {
     return Ok(None);
   }
 
-  let query = Query::new(lang, &query_content).map_err(|err| anyhow::format_err!("{err:?}"))?;
-  Ok(Some(query))
+  match Query::new(lang, &query_content) {
+    Ok(query) => Ok(Some(query)),
+    Err(err) => {
+      log::warn!("Skipping optional query {}/{}: {err}", name, filename);
+      Ok(None)
+    }
+  }
 }
