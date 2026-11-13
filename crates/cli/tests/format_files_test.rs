@@ -117,6 +117,86 @@ fn check_mode_returns_file_changes_for_dirty_files() -> Result<()> {
   Ok(())
 }
 
+#[test]
+fn relative_include_globs_match_exact_paths() -> Result<()> {
+  assert_glob_matches("a.clj", None, &["a.clj"])?;
+  assert_glob_matches("nested/b.clj", None, &["nested/b.clj"])?;
+  Ok(())
+}
+
+#[test]
+fn relative_exclude_globs_skip_files() -> Result<()> {
+  assert_glob_matches("**/*.clj", Some(vec!["a.clj".into()]), &["nested/b.clj"])?;
+  assert_glob_matches("**/*.clj", Some(vec!["nested/b.clj".into()]), &["a.clj"])?;
+  Ok(())
+}
+
+fn assert_glob_matches(
+  include_glob: &str,
+  exclude_globs: Option<Vec<String>>,
+  expected_paths: &[&str],
+) -> Result<()> {
+  let grammars = common::grammars()?;
+  let formatters = common::formatters();
+  let languages = common::languages();
+  let language_aliases = common::language_aliases();
+  let wasm_formatter = WasmFormatter::new("cache".into())?;
+
+  let input_dir = PathBuf::from("tests/fixtures/tests/format_files/input");
+  let output_dir = PathBuf::from("tests/fixtures/tests/format_files/output");
+  let temp_dir = create_temp_dir("pruner-format-files-glob")?;
+  let opts = FormatOpts {
+    printwidth: 80,
+    language: "clojure",
+    source_file: None,
+  };
+  let format_context = FormatContext {
+    grammars: &grammars,
+    languages: &languages,
+    language_aliases: &language_aliases,
+    formatters: &formatters,
+    wasm_formatter: &wasm_formatter,
+  };
+
+  assert!(temp_dir.is_absolute());
+  copy_dir_recursive(&input_dir, &temp_dir)?;
+
+  let changes = format::format_files(
+    &temp_dir,
+    include_glob,
+    exclude_globs,
+    true,
+    &opts,
+    false,
+    &format_context,
+  )?
+  .collect::<Vec<_>>()
+  .into_iter()
+  .collect::<Result<Vec<_>>>()?;
+
+  let mut actual_paths = changes
+    .iter()
+    .map(|change| {
+      Path::new(&change.path)
+        .strip_prefix(&temp_dir)
+        .map(Path::to_path_buf)
+    })
+    .collect::<std::result::Result<Vec<_>, _>>()?;
+  actual_paths.sort();
+  let mut expected_paths = expected_paths.iter().map(PathBuf::from).collect::<Vec<_>>();
+  expected_paths.sort();
+  assert_eq!(actual_paths, expected_paths);
+
+  let mut expected_files = collect_files(&input_dir)?;
+  for path in expected_paths {
+    expected_files.insert(path.clone(), fs::read_to_string(output_dir.join(path))?);
+  }
+  assert_eq!(collect_files(&temp_dir)?, expected_files);
+
+  let _ = fs::remove_dir_all(&temp_dir);
+  Ok(())
+}
+
 fn create_temp_dir(prefix: &str) -> Result<PathBuf> {
   let nanos = SystemTime::now().duration_since(UNIX_EPOCH)?.as_nanos();
   let dir = std::env::temp_dir().join(format!("{prefix}-{}-{nanos}", std::process::id()));

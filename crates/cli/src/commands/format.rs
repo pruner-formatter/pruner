@@ -45,8 +45,8 @@ pub struct FormatArgs {
   #[arg(long, short('d'))]
   dir: Option<PathBuf>,
 
-  /// Specify a file exclusion pattern as a glob. Any files matching this pattern will not be
-  /// formatted. Can be specified multiple times.
+  /// Specify a file exclusion pattern as a glob, relative to the cwd (or --dir if set).
+  /// Any files matching this pattern will not be formatted. Can be specified multiple times.
   #[arg(long, short('e'))]
   exclude: Option<Vec<String>>,
 
@@ -63,7 +63,8 @@ pub struct FormatArgs {
   )]
   check: bool,
 
-  /// A file pattern, in glob format, describing files on disk to be formatted.
+  /// A file pattern, in glob format, relative to the cwd (or --dir if set), describing files on
+  /// disk to be formatted.
   ///
   /// If this is specified then pruner will recursively format all files in the cwd (or --dir if
   /// set) that match this pattern.

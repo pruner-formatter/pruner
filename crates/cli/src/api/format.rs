@@ -219,13 +219,17 @@ pub fn format_files<'a>(
 
   let exclude_matcher = exclude_glob_builder.build()?;
 
-  let walker = ignore::WalkBuilder::new(dir).current_dir(dir).build();
+  let dir = dir.to_path_buf();
+  let walker = ignore::WalkBuilder::new(&dir).current_dir(&dir).build();
   Ok(
     walker
       .filter_map(|entry| entry.ok())
       .filter(|entry| !entry.path().is_dir())
       .filter(move |entry| {
-        include_matcher.is_match(entry.path()) && !exclude_matcher.is_match(entry.path())
+        let Ok(relative_path) = entry.path().strip_prefix(&dir) else {
+          return false;
+        };
+        include_matcher.is_match(relative_path) && !exclude_matcher.is_match(relative_path)
       })
       .par_bridge()
       .filter_map(move |entry| {
